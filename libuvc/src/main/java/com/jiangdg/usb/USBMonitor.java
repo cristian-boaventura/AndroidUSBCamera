@@ -174,11 +174,16 @@ public final class USBMonitor {
 			final Context context = mWeakContext.get();
 			if (context != null) {
 				if (Build.VERSION.SDK_INT >= 31) {
-					// avoid acquiring intent data failed in receiver on Android12
-					// when using PendingIntent.FLAG_IMMUTABLE
-					// because it means Intent can't be modified anywhere -- jiangdg/20220929
-					int PENDING_FLAG_IMMUTABLE = 1<<25;
-					mPermissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), PENDING_FLAG_IMMUTABLE);
+					Intent intent = new Intent(ACTION_USB_PERMISSION);
+					intent.setPackage(context.getPackageName()); // add it
+					mPermissionIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_MUTABLE);
+					final IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+					filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+						context.registerReceiver(mUsbReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+					} else {
+					context.registerReceiver(mUsbReceiver, filter);
+					}
 				} else {
 					mPermissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
 				}
